@@ -6,10 +6,10 @@ An interactive algorithm performance visualizer for Design & Analysis of Algorit
 
 ```
 AlgoVista/
-├── backend/          # FastAPI Python server
-│   ├── main.py           # API endpoints & algorithm implementations
-│   ├── start_server.py   # Auto-port server launcher
-│   └── requirements.txt
+├── backend_cpp/      # C++ HTTP server
+│   ├── src/
+│   │   └── main.cpp       # API endpoints & algorithm implementations
+│   └── CMakeLists.txt
 ├── frontend/         # React + Vite client
 │   ├── src/
 │   │   ├── App.jsx                   # Main app with dashboard & charts
@@ -39,14 +39,14 @@ AlgoVista/
 ### Backend
 
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python start_server.py
+cd backend_cpp
+cmake -B build && cmake --build build
+./build/algovista_backend
 ```
 
-The server starts on `http://127.0.0.1:8000` (falls back to `8010`).
+Requires: CMake ≥ 3.15, C++17 compiler, OpenSSL (for FetchContent).
+
+The server starts on `http://127.0.0.1:8000`.
 
 ### Frontend
 
@@ -99,4 +99,4 @@ Response:
 
 **Frontend:** React, Vite, Framer Motion, Chart.js (react-chartjs-2), Tailwind CSS, Lucide Icons, Three.js (@react-three/fiber/drei)
 
-**Backend:** FastAPI, Uvicorn, NumPy, Pandas, Matplotlib
+**Backend:** C++17, cpp-httplib, nlohmann/json, CMake
