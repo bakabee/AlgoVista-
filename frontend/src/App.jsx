@@ -1226,207 +1226,249 @@ function ResultsPage(props) {
               </LayeredChart>
             </div>
           </div>
-          <div className="mt-6 glass-card rounded-[2rem] p-6">
-            <h3 className="text-2xl font-black text-[#27141e]">Algorithm Insights</h3>
+          <div className="mt-6 space-y-5">
 
-            <div className="mt-6 space-y-8">
+            {/* 4. Performance Classification */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-card rounded-[2rem] p-5"
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Performance Classification</h4>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {algoMetrics.insights.performanceClass.map((text, i) => (
+                  <motion.div
+                    key={text}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 + i * 0.08 }}
+                    className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                  >
+                    <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
 
-              {/* 4. Performance Classification */}
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Performance Classification</h4>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {algoMetrics.insights.performanceClass.map((text, i) => (
-                    <motion.div
-                      key={text}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 + i * 0.08 }}
-                      className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
-                    >
-                      <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
+            {/* 1. Operation Efficiency Analysis */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.08 }}
+              className="glass-card rounded-[2rem] p-5"
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Operation Efficiency Analysis</h4>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {algoMetrics.insights.opEfficiency.map((text, i) => (
+                  <motion.div
+                    key={text}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 + i * 0.08 }}
+                    className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                  >
+                    <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
 
-              {/* 1. Operation Efficiency Analysis */}
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Operation Efficiency Analysis</h4>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {algoMetrics.insights.opEfficiency.map((text, i) => (
-                    <motion.div
-                      key={text}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 + i * 0.08 }}
-                      className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
-                    >
-                      <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
+            {/* 9. Comparison to Ideal Performance */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.16 }}
+              className="glass-card rounded-[2rem] p-5"
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Comparison to Ideal Performance</h4>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {algoMetrics.insights.idealComparison.map((text, i) => (
+                  <motion.div
+                    key={text}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 + i * 0.08 }}
+                    className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                  >
+                    <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
 
-              {/* 9. Comparison to Ideal Performance */}
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Comparison to Ideal Performance</h4>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {algoMetrics.insights.idealComparison.map((text, i) => (
-                    <motion.div
-                      key={text}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.25 + i * 0.08 }}
-                      className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
-                    >
-                      <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
+            {/* 2. Dataset Impact Analysis */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.24 }}
+              className="glass-card rounded-[2rem] p-5"
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Dataset Impact Analysis</h4>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {algoMetrics.insights.datasetImpact.map((text, i) => (
+                  <motion.div
+                    key={text}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.28 + i * 0.08 }}
+                    className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                  >
+                    <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
 
-              {/* 2. Dataset Impact Analysis */}
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Dataset Impact Analysis</h4>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {algoMetrics.insights.datasetImpact.map((text, i) => (
-                    <motion.div
-                      key={text}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 + i * 0.08 }}
-                      className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
-                    >
-                      <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
+            {/* 3. Complexity Match Analysis */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.32 }}
+              className="glass-card rounded-[2rem] p-5"
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Complexity Match Analysis</h4>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {algoMetrics.insights.complexityMatch.map((text, i) => (
+                  <motion.div
+                    key={text}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.36 + i * 0.08 }}
+                    className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                  >
+                    <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
 
-              {/* 3. Complexity Match Analysis */}
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Complexity Match Analysis</h4>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {algoMetrics.insights.complexityMatch.map((text, i) => (
-                    <motion.div
-                      key={text}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.35 + i * 0.08 }}
-                      className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
-                    >
-                      <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
+            {/* 5. Algorithm Behavior Summary */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="glass-card rounded-[2rem] p-5"
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Algorithm Behavior Summary</h4>
+              </div>
+              <div className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5">
+                <p className="text-sm font-semibold leading-6 text-[#4a2335]">{algoMetrics.insights.behaviorSummary}</p>
+              </div>
+            </motion.div>
 
-              {/* 5. Algorithm Behavior Summary */}
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Algorithm Behavior Summary</h4>
-                </div>
-                <div className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5">
-                  <p className="text-sm font-semibold leading-6 text-[#4a2335]">{algoMetrics.insights.behaviorSummary}</p>
-                </div>
-              </motion.div>
-
-              {/* 7. Algorithm-Specific Insights */}
-              {algoMetrics.insights.algoSpecific.length > 0 && (
-                <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-                  <div className="mb-3 flex items-center gap-3">
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
-                    <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Algorithm-Specific Insights</h4>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {algoMetrics.insights.algoSpecific.map((text, i) => (
-                      <motion.div
-                        key={text}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.45 + i * 0.08 }}
-                        className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
-                      >
-                        <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
-              {/* 6. Scalability Insight */}
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Scalability Insight</h4>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {algoMetrics.insights.scalability.map((text, i) => (
-                    <motion.div
-                      key={text}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.5 + i * 0.08 }}
-                      className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
-                    >
-                      <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-
-              {/* 8. Educational Insight Box */}
+            {/* 7. Algorithm-Specific Insights */}
+            {algoMetrics.insights.algoSpecific.length > 0 && (
               <motion.div
-                initial={{ opacity: 0, y: 12 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="rounded-[1.5rem] border border-[#be185d]/20 bg-gradient-to-br from-[#be185d]/8 to-[#ff4d8d]/8 p-5"
+                transition={{ delay: 0.48 }}
+                className="glass-card rounded-[2rem] p-5"
               >
-                <div className="mb-2 flex items-center gap-3">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#be185d]/15 text-xs font-black text-[#be185d]">i</div>
-                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Why This Matters</h4>
-                </div>
-                <p className="text-sm font-semibold leading-6 text-[#4a2335]">{algoMetrics.insights.whyItMatters}</p>
-              </motion.div>
-
-              {/* 10. Key Takeaways Panel */}
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}>
                 <div className="mb-3 flex items-center gap-3">
                   <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Key Takeaways</h4>
+                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Algorithm-Specific Insights</h4>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {algoMetrics.insights.takeaways.map((text, i) => (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {algoMetrics.insights.algoSpecific.map((text, i) => (
                     <motion.div
                       key={text}
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.6 + i * 0.08 }}
-                      className="rounded-[1.2rem] bg-white/68 p-3.5 shadow-sm shadow-[#ff4d8d]/5"
+                      transition={{ delay: 0.52 + i * 0.08 }}
+                      className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
                     >
                       <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
                     </motion.div>
                   ))}
                 </div>
               </motion.div>
+            )}
 
-            </div>
+            {/* 6. Scalability Insight */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.56 }}
+              className="glass-card rounded-[2rem] p-5"
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Scalability Insight</h4>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {algoMetrics.insights.scalability.map((text, i) => (
+                  <motion.div
+                    key={text}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 + i * 0.08 }}
+                    className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                  >
+                    <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* 8. Educational Insight Box */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.64 }}
+              className="glass-card rounded-[2rem] p-5"
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#be185d]/15 text-xs font-black text-[#be185d]">i</div>
+                <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Why This Matters</h4>
+              </div>
+              <div className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5">
+                <p className="text-sm font-semibold leading-6 text-[#4a2335]">{algoMetrics.insights.whyItMatters}</p>
+              </div>
+            </motion.div>
+
+            {/* 10. Key Takeaways Panel */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.72 }}
+              className="glass-card rounded-[2rem] p-5"
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Key Takeaways</h4>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {algoMetrics.insights.takeaways.map((text, i) => (
+                  <motion.div
+                    key={text}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.76 + i * 0.08 }}
+                    className="rounded-[1.2rem] bg-white/68 p-3.5 shadow-sm shadow-[#ff4d8d]/5"
+                  >
+                    <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+
           </div>
           <div className="mt-6 glass-card relative rounded-[2rem] p-4 md:p-6">
             <div className="grid gap-5 lg:grid-cols-2">
