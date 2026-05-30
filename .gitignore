@@ -1,0 +1,16 @@
+node_modules/
+venv/
+__pycache__/
+*.pyc
+dist/
+.env
+.Rhistory
+.RData
+.Rapp.history
+*.Rproj
+.DS_Store
+Thumbs.db
+*.egg-info/
+.eggs/
+.env/
+.pytest_cache/
