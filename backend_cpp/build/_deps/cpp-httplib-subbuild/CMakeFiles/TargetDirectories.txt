@@ -1,3 +1,0 @@
-/home/khan/DAA/backend_cpp/build/_deps/cpp-httplib-subbuild/CMakeFiles/cpp-httplib-populate.dir
-/home/khan/DAA/backend_cpp/build/_deps/cpp-httplib-subbuild/CMakeFiles/edit_cache.dir
-/home/khan/DAA/backend_cpp/build/_deps/cpp-httplib-subbuild/CMakeFiles/rebuild_cache.dir

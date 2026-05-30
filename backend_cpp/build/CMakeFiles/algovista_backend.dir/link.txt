@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/algovista_backend.dir/src/main.cpp.o -o algovista_backend  /usr/lib/x86_64-linux-gnu/libz.so /usr/lib/x86_64-linux-gnu/libssl.so /usr/lib/x86_64-linux-gnu/libcrypto.so 

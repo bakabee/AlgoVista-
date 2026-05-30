@@ -14,3 +14,4 @@ Thumbs.db
 .eggs/
 .env/
 .pytest_cache/
+backend_cpp/build/
