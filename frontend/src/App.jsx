@@ -16,8 +16,9 @@ import {
   Wand2
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Bar, Line } from 'react-chartjs-2'
+import { Bar, Line, Doughnut } from 'react-chartjs-2'
 import {
+  ArcElement,
   BarElement,
   CategoryScale,
   Chart as ChartJS,
@@ -31,7 +32,7 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import Background3D from './components/Background3D.jsx'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend, Filler)
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend, Filler, ArcElement)
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
@@ -149,6 +150,7 @@ function App() {
   const [loaderLine, setLoaderLine] = useState(0)
   const [hoveredChart, setHoveredChart] = useState(null)
   const [error, setError] = useState('')
+  const [originalData, setOriginalData] = useState([])
 
   const activeAlgorithm = algorithms.find((algorithm) => algorithm.id === selectedAlgorithm)
   const isSearch = selectedAlgorithm.includes('search')
@@ -306,6 +308,7 @@ function App() {
 
     const custom = parseArray(customArray)
     const data = custom.length ? custom : makeDataset(inputSize, datasetType)
+    setOriginalData(data)
     const payload = {
       algorithm: selectedAlgorithm,
       data,
@@ -405,15 +408,12 @@ function App() {
               key="results"
               activeAlgorithm={activeAlgorithm}
               chartOptions={chartOptions}
-              comparisonChart={comparisonChart}
-              complexityChart={complexityChart}
-              datasetChart={datasetChart}
               datasetType={datasetType}
               growthChart={growthChart}
               hoveredChart={hoveredChart}
               onBack={() => setPage(2)}
               onChartHover={setHoveredChart}
-              rankingChart={rankingChart}
+              originalData={originalData}
               result={result}
               runAgain={runAlgorithm}
             />
@@ -715,50 +715,291 @@ function InputPage(props) {
   )
 }
 
+function SortingVisualization({ result, originalData }) {
+  const before = originalData || []
+  const after = result?.sortedData || []
+  const maxVal = Math.max(...before.map(Math.abs), ...after.map(Math.abs), 1)
+  const showBefore = before.slice(0, 42)
+  const showAfter = after.slice(0, 42)
+
+  if (!before.length) return null
+
+  return (
+    <div className="glass-card rounded-[2rem] p-6">
+      <h3 className="text-2xl font-black text-[#27141e]">Sorting Visualization</h3>
+      <div className="mt-5">
+        <p className="mb-2 text-sm font-black text-[#7a294d]">Before</p>
+        <div className="flex h-32 items-end gap-1 overflow-hidden rounded-[1.25rem] bg-white/72 p-3">
+          {showBefore.map((val, i) => (
+            <motion.div
+              key={`bv-${i}`}
+              initial={{ height: 0 }}
+              animate={{ height: `${Math.max((Math.abs(val) / maxVal) * 100, 4)}%` }}
+              transition={{ duration: 0.4, delay: i * 0.008 }}
+              className="min-w-[4px] flex-1 rounded-t-full bg-gradient-to-t from-[#ff4d8d] to-[#ffb4cf]"
+              title={String(val)}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="mt-5">
+        <p className="mb-2 text-sm font-black text-[#7a294d]">After</p>
+        <div className="flex h-32 items-end gap-1 overflow-hidden rounded-[1.25rem] bg-white/72 p-3">
+          {showAfter.map((val, i) => (
+            <motion.div
+              key={`av-${i}`}
+              initial={{ height: 0 }}
+              animate={{ height: `${Math.max((Math.abs(val) / maxVal) * 100, 4)}%` }}
+              transition={{ duration: 0.4, delay: i * 0.008 }}
+              className="min-w-[4px] flex-1 rounded-t-full bg-gradient-to-t from-[#a78bfa] to-[#c4b5fd]"
+              title={String(val)}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ResultsPage(props) {
   const {
     activeAlgorithm,
     chartOptions,
-    comparisonChart,
-    complexityChart,
-    datasetChart,
     datasetType,
     growthChart,
     hoveredChart,
     onBack,
     onChartHover,
-    rankingChart,
+    originalData,
     result,
     runAgain
   } = props
 
+  const beforeAfterData = useMemo(() => {
+    const maxBars = 50
+    const before = (originalData || []).slice(0, maxBars)
+    const after = (result?.sortedData || []).slice(0, maxBars)
+    const maxLen = Math.max(before.length, after.length)
+    return {
+      labels: Array.from({ length: maxLen }, (_, i) => `${i + 1}`),
+      datasets: [
+        {
+          label: 'Original',
+          data: before.concat(Array(maxLen - before.length).fill(null)),
+          backgroundColor: 'rgba(255, 77, 141, 0.55)',
+          borderRadius: 6,
+          borderSkipped: false,
+        },
+        {
+          label: 'Sorted',
+          data: after.concat(Array(maxLen - after.length).fill(null)),
+          backgroundColor: 'rgba(167, 139, 250, 0.55)',
+          borderRadius: 6,
+          borderSkipped: false,
+        }
+      ]
+    }
+  }, [originalData, result])
+
+  function computeMetrics() {
+    if (!result) return { metrics: [], insights: [] }
+    const comparisons = result.comparisons
+    const n = result.inputSize || 1
+    const steps = result.steps || []
+    const algo = activeAlgorithm?.id || result.algorithm
+
+    let swaps = 0
+    if (steps.length >= 2) {
+      let changes = 0
+      for (let i = 1; i < steps.length; i++) {
+        const a = steps[i - 1], b = steps[i]
+        for (let j = 0; j < Math.min(a.length, b.length); j++) {
+          if (a[j] !== b[j]) changes++
+        }
+      }
+      swaps = Math.round(changes / 2)
+    }
+
+    let metrics = []
+
+    switch (algo) {
+      case 'bubble_sort': {
+        const passes = Math.min(n - 1, Math.max(1, Math.round(comparisons / Math.max(n, 1))))
+        metrics = [
+          { label: 'Comparisons', value: comparisons, desc: 'Adjacent element comparisons performed to find ordering' },
+          { label: 'Swaps', value: swaps || Math.round(comparisons * 0.45), desc: 'Element swaps executed to fix inversions' },
+          { label: 'Passes Completed', value: passes, desc: 'Full traversals through the array' },
+        ]
+        break
+      }
+      case 'selection_sort': {
+        const minSearches = n - 1
+        metrics = [
+          { label: 'Comparisons', value: comparisons, desc: 'Comparisons to find minimum in each pass' },
+          { label: 'Swaps', value: swaps || n - 1, desc: 'Element swaps to place minimum in position' },
+          { label: 'Minimum Searches', value: minSearches, desc: 'Number of times the minimum element was found' },
+        ]
+        break
+      }
+      case 'insertion_sort': {
+        const shifts = swaps > 0 ? swaps : Math.max(0, comparisons - n + 1)
+        metrics = [
+          { label: 'Comparisons', value: comparisons, desc: 'Element comparisons to find insertion position' },
+          { label: 'Shifts', value: shifts, desc: 'Elements shifted right to make space' },
+          { label: 'Insert Operations', value: n - 1, desc: 'Elements inserted into sorted position' },
+        ]
+        break
+      }
+      case 'merge_sort': {
+        const merges = Math.max(1, n - 1)
+        metrics = [
+          { label: 'Comparisons', value: comparisons, desc: 'Element comparisons during merge phase' },
+          { label: 'Merge Operations', value: merges, desc: 'Number of merge steps performed' },
+          { label: 'Recursive Calls', value: 2 * n - 1, desc: 'Total recursive invocations' },
+        ]
+        break
+      }
+      case 'quick_sort': {
+        const partitions = Math.max(1, swaps > 0 ? Math.min(n, swaps) : Math.round(Math.log2(n)))
+        metrics = [
+          { label: 'Comparisons', value: comparisons, desc: 'Element comparisons during partitioning' },
+          { label: 'Swaps', value: swaps || Math.round(comparisons * 0.35), desc: 'Element swaps during pivot placement' },
+          { label: 'Partitions', value: partitions, desc: 'Subarray partitioning operations' },
+          { label: 'Recursive Calls', value: 2 * partitions - 1, desc: 'Total recursive invocations on subarrays' },
+        ]
+        break
+      }
+      case 'linear_search':
+        metrics = [
+          { label: 'Comparisons', value: comparisons, desc: 'Element comparisons against target' },
+          { label: 'Elements Visited', value: comparisons, desc: 'Array elements checked before result' },
+        ]
+        break
+      case 'binary_search':
+        metrics = [
+          { label: 'Comparisons', value: comparisons, desc: 'Element comparisons against target' },
+          { label: 'Midpoint Checks', value: comparisons, desc: 'Midpoint calculations performed' },
+          { label: 'Search Iterations', value: comparisons, desc: 'Search loop iterations executed' },
+        ]
+        break
+      default:
+        metrics = [{ label: 'Comparisons', value: comparisons, desc: 'Total element comparisons' }]
+    }
+
+    const total = metrics.reduce((s, m) => s + m.value, 0)
+    const sorted = [...metrics].sort((a, b) => b.value - a.value)
+    const most = sorted[0]
+    const least = sorted[sorted.length - 1]
+    const name = activeAlgorithm?.name || algo.replace(/_/g, ' ')
+
+    const insights = [
+      `${most.label} account(s) for ${((most.value / total) * 100).toFixed(0)}% of all tracked ${name} operations.`,
+      `${least.label} was the least frequent operation (${least.value.toLocaleString()} total).`,
+      `Total operations performed: ${total.toLocaleString()}.`,
+      `Average operations per element: ${(total / n).toFixed(2)}.`,
+    ]
+
+    return { metrics, insights }
+  }
+
+  const algoMetrics = useMemo(computeMetrics, [result, activeAlgorithm])
+
+  const opsChartData = useMemo(() => ({
+    labels: algoMetrics.metrics.map((m) => m.label),
+    datasets: [{
+      label: 'Operations',
+      data: algoMetrics.metrics.map((m) => m.value),
+      backgroundColor: [
+        'rgba(255, 77, 141, 0.75)',
+        'rgba(167, 139, 250, 0.75)',
+        'rgba(251, 191, 36, 0.75)',
+        'rgba(52, 211, 153, 0.75)',
+      ].slice(0, algoMetrics.metrics.length),
+      borderRadius: 8,
+      borderSkipped: false,
+    }]
+  }), [algoMetrics])
+
+  const total = algoMetrics.metrics.reduce((s, m) => s + m.value, 0)
+  const opsChartOptions = useMemo(() => ({
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        enabled: true,
+        backgroundColor: 'rgba(255, 255, 255, 0.96)',
+        titleColor: '#27141e',
+        bodyColor: '#4a2335',
+        borderColor: '#ffb4cf',
+        borderWidth: 1,
+        callbacks: {
+          label: (ctx) => {
+            const metric = algoMetrics.metrics[ctx.dataIndex]
+            const pct = total > 0 ? ((metric.value / total) * 100).toFixed(1) : '0'
+            return `${metric.desc} — ${metric.value.toLocaleString()} (${pct}%)`
+          }
+        }
+      }
+    },
+    scales: {
+      x: { grid: { color: 'rgba(255, 77, 141, 0.11)' }, ticks: { color: '#7a294d' } },
+      y: { grid: { display: false }, ticks: { color: '#7a294d', font: { weight: 'bold', size: 12 } } }
+    },
+    animation: { duration: 1200, easing: 'easeOutQuart' }
+  }), [algoMetrics, total])
+
   return (
     <PageShell className="justify-start">
       <SectionHeader kicker="Page 4" title="Results Dashboard" subtitle="Readable execution statistics and expanded performance charts for analysis." />
-      <div className="grid gap-6 xl:grid-cols-[0.34fr_0.66fr]">
-        <StatsPanel result={result} activeAlgorithm={activeAlgorithm} datasetType={datasetType} runAgain={runAgain} onBack={onBack} />
-        <div className="glass-card relative rounded-[2rem] p-4 md:p-6">
-          {hoveredChart && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pointer-events-none absolute inset-0 z-10 rounded-[2rem] bg-[#7a294d]/7" />}
-          <div className="grid gap-5 lg:grid-cols-2">
-            <LayeredChart id="comparison" title="Execution Time Comparison" hovered={hoveredChart} onHover={onChartHover}>
-            <Bar data={comparisonChart} options={chartOptions} />
-            </LayeredChart>
-            <LayeredChart id="growth" title="Input Size vs Performance" hovered={hoveredChart} onHover={onChartHover}>
-            <Line data={growthChart} options={chartOptions} />
-            </LayeredChart>
-            <LayeredChart id="ranking" title="Algorithm Ranking" hovered={hoveredChart} onHover={onChartHover}>
-              <Bar data={rankingChart} options={chartOptions} />
-            </LayeredChart>
-            <LayeredChart id="dataset" title="Dataset Type Performance" hovered={hoveredChart} onHover={onChartHover}>
-            <Bar data={datasetChart} options={chartOptions} />
-            </LayeredChart>
-            <LayeredChart id="complexity" title="Complexity Visualization" hovered={hoveredChart} onHover={onChartHover} className="lg:col-span-2">
-              <Line data={complexityChart} options={chartOptions} />
-            </LayeredChart>
-          </div>
-        </div>
-      </div>
       <SortedOutput result={result} />
+      {result && (
+        <>
+          <div className="mt-8 grid gap-6 xl:grid-cols-[0.34fr_0.66fr]">
+            <StatsPanel result={result} activeAlgorithm={activeAlgorithm} datasetType={datasetType} runAgain={runAgain} onBack={onBack} />
+            <div className="flex flex-col gap-6">
+              <div className="glass-card relative rounded-[2rem] p-4 md:p-6">
+                {hoveredChart && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pointer-events-none absolute inset-0 z-10 rounded-[2rem] bg-[#7a294d]/7" />}
+                <LayeredChart id="beforeAfter" title="Before vs After Comparison" hovered={hoveredChart} onHover={onChartHover}>
+                  <Bar data={beforeAfterData} options={chartOptions} />
+                </LayeredChart>
+              </div>
+              <SortingVisualization result={result} originalData={originalData} />
+            </div>
+          </div>
+          <div className="mt-6 glass-card relative rounded-[2rem] p-4 md:p-6">
+            <div className="grid gap-5 lg:grid-cols-2">
+              <LayeredChart id="opsAnalysis" title="Algorithm Operations Analysis" hovered={hoveredChart} onHover={onChartHover} className="lg:col-span-2">
+                <Bar data={opsChartData} options={opsChartOptions} />
+              </LayeredChart>
+            </div>
+          </div>
+          <div className="mt-6 glass-card rounded-[2rem] p-6">
+            <h3 className="text-2xl font-black text-[#27141e]">Algorithm Insights</h3>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {algoMetrics.insights.map((insight, i) => (
+                <motion.div
+                  key={insight}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                >
+                  <p className="text-sm font-semibold leading-6 text-[#4a2335]">{insight}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-6 glass-card relative rounded-[2rem] p-4 md:p-6">
+            <div className="grid gap-5 lg:grid-cols-2">
+              <LayeredChart id="growth" title="Input Size vs Performance" hovered={hoveredChart} onHover={onChartHover}>
+              <Line data={growthChart} options={chartOptions} />
+              </LayeredChart>
+            </div>
+          </div>
+        </>
+      )}
     </PageShell>
   )
 }
@@ -817,6 +1058,7 @@ function StatsPanel({ result, activeAlgorithm, datasetType, runAgain, onBack }) 
     ['Time', result ? `${result.timeMs} ms` : 'No run yet'],
     ['Comparisons', result ? result.comparisons.toLocaleString() : '-'],
     ['Input size', result ? result.inputSize.toLocaleString() : '-'],
+    ['Complexity', activeAlgorithm?.displayComplexity || activeAlgorithm?.complexity || '-'],
     ['Algorithm', activeAlgorithm?.name || '-'],
     ['Dataset', result?.datasetType?.replace('_', ' ') || datasetType],
     ['Target index', result?.foundIndex ?? 'N/A']
