@@ -414,6 +414,7 @@ function App() {
               onBack={() => setPage(2)}
               onChartHover={setHoveredChart}
               originalData={originalData}
+              performanceHistory={performanceHistory}
               result={result}
               runAgain={runAlgorithm}
             />
@@ -771,6 +772,7 @@ function ResultsPage(props) {
     onBack,
     onChartHover,
     originalData,
+    performanceHistory,
     result,
     runAgain
   } = props
@@ -807,6 +809,10 @@ function ResultsPage(props) {
     const n = result.inputSize || 1
     const steps = result.steps || []
     const algo = activeAlgorithm?.id || result.algorithm
+    const algoName = activeAlgorithm?.name || algo.replace(/_/g, ' ')
+    const algoComplexity = activeAlgorithm?.complexity || ''
+    const dt = (result.datasetType || '').toLowerCase().replace(/ /g, '_')
+    const timeMs = result.timeMs || 0
 
     let swaps = 0
     if (steps.length >= 2) {
@@ -890,14 +896,259 @@ function ResultsPage(props) {
     const sorted = [...metrics].sort((a, b) => b.value - a.value)
     const most = sorted[0]
     const least = sorted[sorted.length - 1]
-    const name = activeAlgorithm?.name || algo.replace(/_/g, ' ')
 
-    const insights = [
-      `${most.label} account(s) for ${((most.value / total) * 100).toFixed(0)}% of all tracked ${name} operations.`,
-      `${least.label} was the least frequent operation (${least.value.toLocaleString()} total).`,
-      `Total operations performed: ${total.toLocaleString()}.`,
-      `Average operations per element: ${(total / n).toFixed(2)}.`,
+    const isQuadratic = algoComplexity.includes('O(n²)') || algoComplexity.includes('O(n^2)')
+    const isNLogN = algoComplexity.includes('O(n log n)')
+    const isLinear = algoComplexity.includes('O(n)') && !algoComplexity.includes('O(n log')
+    const isLogN = algoComplexity.includes('O(log n')
+
+    // 1. Operation Efficiency Analysis
+    const opsPerElement = (total / n).toFixed(2)
+    const compsPerElement = (comparisons / n).toFixed(2)
+    const opEfficiency = [
+      `Total Operations: ${total.toLocaleString()}`,
+      `Operations Per Element: ${opsPerElement}`,
+      `Comparisons Per Element: ${compsPerElement}`,
     ]
+    if (activeAlgorithm?.group === 'Sorting') {
+      const swapsPerElement = (swaps / n).toFixed(2)
+      opEfficiency.push(`Swaps/Moves Per Element: ${swapsPerElement}`)
+    }
+
+    // 2. Dataset Impact Analysis
+    const datasetImpact = []
+    if (dt === 'reverse_sorted') {
+      datasetImpact.push('Reverse sorted datasets cause significantly more operations.')
+      if (['bubble_sort', 'selection_sort', 'insertion_sort'].includes(algo)) {
+        datasetImpact.push('The selected dataset closely matches the algorithm\'s worst-case behavior.')
+      } else {
+        datasetImpact.push('The algorithm handles reverse-sorted data reasonably well.')
+      }
+    } else if (dt === 'sorted') {
+      if (['bubble_sort', 'insertion_sort'].includes(algo)) {
+        datasetImpact.push('The algorithm performed near its best-case scenario.')
+      } else if (algo === 'quick_sort') {
+        datasetImpact.push('Sorted data can degrade Quick Sort performance without randomized pivot selection.')
+      } else {
+        datasetImpact.push('The algorithm processes sorted data efficiently.')
+      }
+    } else {
+      datasetImpact.push('Random datasets provide a representative view of average-case performance.')
+      if (['quick_sort', 'merge_sort'].includes(algo)) {
+        datasetImpact.push('The algorithm is well-suited for random data distributions.')
+      }
+    }
+
+    // 3. Complexity Match Analysis
+    const complexityMatch = []
+    if (isQuadratic) {
+      complexityMatch.push('Execution characteristics indicate quadratic growth.')
+      complexityMatch.push(`The measured growth pattern aligns with ${algoComplexity}.`)
+      complexityMatch.push('The observed performance is consistent with theoretical expectations for quadratic algorithms.')
+    } else if (isNLogN) {
+      complexityMatch.push(`The measured growth pattern aligns with ${algoComplexity}.`)
+      complexityMatch.push('The observed performance is consistent with theoretical expectations.')
+      complexityMatch.push('Divide-and-conquer strategy keeps the growth rate sub-quadratic.')
+    } else if (isLinear) {
+      complexityMatch.push(`The measured growth pattern aligns with ${algoComplexity}.`)
+      complexityMatch.push('Execution time grows linearly with input size, matching expectations.')
+    } else if (isLogN) {
+      complexityMatch.push(`The measured growth pattern aligns with ${algoComplexity}.`)
+      complexityMatch.push('Search space is halved at each step, resulting in logarithmic growth.')
+    }
+
+    // 4. Performance Classification
+    const expectedTime = activeAlgorithm?.baseScore || 1
+    const ratio = timeMs / expectedTime
+    let rating
+    if (ratio < 0.5) rating = 'Excellent'
+    else if (ratio < 1.0) rating = 'Good'
+    else if (ratio < 2.0) rating = 'Average'
+    else rating = 'Poor'
+
+    const performanceClass = [
+      `Performance Rating: ${rating}`,
+      ratio < 0.5
+        ? `${algoName} handled the dataset exceptionally well.`
+        : ratio < 1.0
+          ? `${algoName} performed well on this dataset.`
+          : ratio < 2.0
+            ? `${algoName} performed within expected parameters.`
+            : `${algoName} struggled with this dataset configuration.`,
+    ]
+
+    // 5. Algorithm Behavior Summary
+    let behaviorSummary
+    switch (algo) {
+      case 'bubble_sort':
+        behaviorSummary = `Bubble Sort repeatedly stepped through the dataset, comparing adjacent elements and swapping them when out of order. After ${Math.min(n - 1, Math.round(comparisons / n))} passes, the array was fully sorted. Each pass moved the largest remaining element to its correct position.`
+        break
+      case 'selection_sort':
+        behaviorSummary = `Selection Sort scanned the dataset ${n - 1} times, each time selecting the minimum element from the unsorted portion and placing it at the end of the sorted section. This approach guarantees exactly ${n - 1} swaps regardless of input arrangement.`
+        break
+      case 'insertion_sort':
+        behaviorSummary = `Insertion Sort built the sorted array incrementally by taking each unsorted element and inserting it into its correct position among previously sorted elements. Element shifts were required to make space for each insertion.`
+        break
+      case 'merge_sort':
+        behaviorSummary = `Merge Sort efficiently divided the dataset into smaller segments and merged them back in sorted order. The number of comparisons remained significantly lower than quadratic sorting algorithms due to the divide-and-conquer approach.`
+        break
+      case 'quick_sort':
+        behaviorSummary = `Quick Sort selected pivot elements to partition the array into smaller segments. Elements were rearranged so that those less than the pivot came before it and those greater came after. This recursive process was applied to each partition until the entire array was sorted.`
+        break
+      case 'linear_search':
+        behaviorSummary = `Linear Search examined each element sequentially until the target ${result.target !== null && result.foundIndex !== null ? 'was found at index ' + result.foundIndex : 'was not found in the dataset'}. The algorithm visited ${comparisons} element${comparisons !== 1 ? 's' : ''} in the process.`
+        break
+      case 'binary_search':
+        behaviorSummary = `Binary Search repeatedly divided the sorted dataset in half, comparing the target to the middle element. After ${comparisons} midpoint check${comparisons !== 1 ? 's' : ''}, the target ${result.foundIndex !== null ? 'was located at index ' + result.foundIndex : 'was determined to be absent from the dataset'}.`
+        break
+      default:
+        behaviorSummary = `${algoName} completed execution with ${comparisons} comparisons on a dataset of ${n} elements.`
+    }
+
+    // 6. Scalability Insight
+    const scalability = []
+    const history = performanceHistory[algo] || []
+    if (history.length >= 2) {
+      const last = history[history.length - 1]
+      const first = history[0]
+      const trend = last / first
+      if (isQuadratic && n > 20) {
+        scalability.push('This algorithm may become inefficient for very large datasets due to quadratic growth.')
+      } else if (isNLogN) {
+        scalability.push('This algorithm scales efficiently as input size grows.')
+        scalability.push('Execution time increases slowly compared to quadratic algorithms.')
+      } else {
+        scalability.push('This algorithm handles the current dataset size effectively.')
+      }
+      if (trend < 2 && history.length > 1) {
+        scalability.push('Performance remains stable across multiple runs.')
+      } else if (trend >= 2) {
+        scalability.push('Execution time varies across runs, potentially due to dataset characteristics.')
+      }
+    } else {
+      if (isQuadratic) {
+        scalability.push('This algorithm may become inefficient for very large datasets.')
+      } else if (isNLogN) {
+        scalability.push('This algorithm scales efficiently as input size grows.')
+      } else if (isLogN) {
+        scalability.push('This algorithm remains efficient even for very large datasets.')
+      } else {
+        scalability.push('Additional runs would provide more detailed scalability insights.')
+      }
+    }
+
+    // 7. Algorithm-Specific Insights
+    const algoSpecific = []
+    switch (algo) {
+      case 'bubble_sort': {
+        const passes = Math.min(n - 1, Math.max(1, Math.round(comparisons / Math.max(n, 1))))
+        algoSpecific.push(`Passes completed: ${passes} out of a maximum of ${n - 1}.`)
+        if (steps.length > 0 && steps.length < n) {
+          algoSpecific.push('Early termination detected — the array became sorted before all passes completed.')
+        } else {
+          algoSpecific.push('No early termination occurred; the algorithm completed all required passes.')
+        }
+        algoSpecific.push(`Swap intensity: ${swaps} swaps performed across ${passes} passes.`)
+        break
+      }
+      case 'selection_sort': {
+        algoSpecific.push(`Minimum searches performed: ${n - 1}.`)
+        algoSpecific.push(`Swap efficiency: exactly 1 swap per pass, totaling ${Math.min(swaps, n - 1)} swaps.`)
+        break
+      }
+      case 'insertion_sort': {
+        const shifts = swaps > 0 ? swaps : Math.max(0, comparisons - n + 1)
+        algoSpecific.push(`Number of shifts performed: ${shifts}.`)
+        if (dt === 'sorted') {
+          algoSpecific.push('Insertion Sort is particularly well-suited for nearly sorted or partially sorted data.')
+        }
+        break
+      }
+      case 'merge_sort': {
+        algoSpecific.push(`Recursive depth: approximately ${Math.ceil(Math.log2(n))} levels.`)
+        algoSpecific.push('Divide-and-conquer efficiency ensured O(n log n) performance.')
+        break
+      }
+      case 'quick_sort': {
+        const partitions = Math.max(1, swaps > 0 ? Math.min(n, swaps) : Math.round(Math.log2(n)))
+        algoSpecific.push(`Partitions created: ${partitions}.`)
+        algoSpecific.push(`Recursive depth: approximately ${Math.ceil(Math.log2(partitions + 1))} levels.`)
+        algoSpecific.push('Pivot selection significantly impacts overall performance.')
+        break
+      }
+      case 'linear_search': {
+        const coverage = ((comparisons / n) * 100).toFixed(1)
+        algoSpecific.push(`Elements visited: ${comparisons} out of ${n}.`)
+        algoSpecific.push(`Search coverage: ${coverage}% of the dataset.`)
+        if (result.foundIndex !== null) {
+          algoSpecific.push(`Target found after checking ${comparisons} element${comparisons !== 1 ? 's' : ''}.`)
+        }
+        break
+      }
+      case 'binary_search': {
+        const maxIterations = Math.ceil(Math.log2(n))
+        algoSpecific.push(`Midpoint checks performed: ${comparisons}.`)
+        algoSpecific.push(`Maximum required checks for this size: ${maxIterations}.`)
+        algoSpecific.push('Each check eliminated approximately half of the remaining elements.')
+        break
+      }
+    }
+
+    // 8. Educational Insight Box
+    let whyItMatters
+    if (isQuadratic) {
+      whyItMatters = `${algoName} has ${algoComplexity} complexity because it uses nested loops where each element is compared with many others. For ${n} elements, approximately ${((n * (n - 1)) / 2).toLocaleString()} comparisons may be needed in the worst case. This makes quadratic algorithms practical only for small datasets (typically under 10,000 elements).`
+    } else if (isNLogN) {
+      whyItMatters = `${algoName} maintains ${algoComplexity} complexity because it repeatedly divides the dataset into smaller subproblems. Each division creates ${Math.ceil(Math.log2(n))} levels of recursion, and each level processes all ${n} elements once. This balanced approach achieves significantly better performance than quadratic sorting on large datasets.`
+    } else if (isLogN) {
+      whyItMatters = `Binary Search reduces the search space by half during every iteration, resulting in logarithmic complexity. For a dataset of ${n} elements, at most ${Math.ceil(Math.log2(n))} checks are needed — far fewer than scanning all elements linearly. This is why binary search is exponentially faster than linear search on sorted data.`
+    } else if (isLinear) {
+      whyItMatters = `Linear Search has ${algoComplexity} complexity because in the worst case, it may need to examine every single element. While simple and universal, this approach becomes slow for large datasets where faster alternatives like binary search (on sorted data) can be used.`
+    } else {
+      whyItMatters = `${algoName} completed execution. Understanding the relationship between input size and execution time helps predict performance on larger datasets.`
+    }
+
+    // 9. Comparison to Ideal Performance
+    const idealComparison = [
+      `Observed Time: ${timeMs.toFixed(4)} ms`,
+      `Expected Complexity: ${algoComplexity}`,
+      ratio < 1.5
+        ? 'Performance is within expected bounds.'
+        : 'Performance deviates from the ideal, potentially due to dataset characteristics.',
+    ]
+
+    // 10. Key Takeaways Panel
+    const takeaways = []
+    takeaways.push('✓ Algorithm execution completed successfully')
+    if (isQuadratic) {
+      takeaways.push('✓ Quadratic complexity confirmed for this dataset')
+      if (swaps < (n * (n - 1)) / 4) {
+        takeaways.push('✓ Dataset did not trigger worst-case behavior')
+      }
+    } else if (isNLogN) {
+      takeaways.push(`✓ Complexity behavior matches ${algoComplexity}`)
+      takeaways.push('✓ Comparisons dominated total operations')
+      takeaways.push('✓ Algorithm remains suitable for larger datasets')
+    } else if (isLogN) {
+      takeaways.push('✓ Logarithmic complexity keeps operations minimal')
+      takeaways.push(`✓ Target ${result.foundIndex !== null ? 'found' : 'not found'} with only ${comparisons} checks`)
+    } else if (isLinear) {
+      takeaways.push('✓ Linear complexity matches expected O(n) behavior')
+    }
+    takeaways.push(`✓ ${algoName} processed ${n} elements in ${timeMs.toFixed(4)} ms`)
+
+    const insights = {
+      opEfficiency,
+      datasetImpact,
+      complexityMatch,
+      performanceClass,
+      behaviorSummary,
+      scalability,
+      algoSpecific,
+      whyItMatters,
+      idealComparison,
+      takeaways,
+    }
 
     return { metrics, insights }
   }
@@ -977,18 +1228,204 @@ function ResultsPage(props) {
           </div>
           <div className="mt-6 glass-card rounded-[2rem] p-6">
             <h3 className="text-2xl font-black text-[#27141e]">Algorithm Insights</h3>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {algoMetrics.insights.map((insight, i) => (
-                <motion.div
-                  key={insight}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
-                >
-                  <p className="text-sm font-semibold leading-6 text-[#4a2335]">{insight}</p>
+
+            <div className="mt-6 space-y-8">
+
+              {/* 4. Performance Classification */}
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Performance Classification</h4>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {algoMetrics.insights.performanceClass.map((text, i) => (
+                    <motion.div
+                      key={text}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 + i * 0.08 }}
+                      className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                    >
+                      <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* 1. Operation Efficiency Analysis */}
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Operation Efficiency Analysis</h4>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {algoMetrics.insights.opEfficiency.map((text, i) => (
+                    <motion.div
+                      key={text}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 + i * 0.08 }}
+                      className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                    >
+                      <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* 9. Comparison to Ideal Performance */}
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Comparison to Ideal Performance</h4>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {algoMetrics.insights.idealComparison.map((text, i) => (
+                    <motion.div
+                      key={text}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.25 + i * 0.08 }}
+                      className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                    >
+                      <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* 2. Dataset Impact Analysis */}
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Dataset Impact Analysis</h4>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {algoMetrics.insights.datasetImpact.map((text, i) => (
+                    <motion.div
+                      key={text}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 + i * 0.08 }}
+                      className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                    >
+                      <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* 3. Complexity Match Analysis */}
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Complexity Match Analysis</h4>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {algoMetrics.insights.complexityMatch.map((text, i) => (
+                    <motion.div
+                      key={text}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.35 + i * 0.08 }}
+                      className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                    >
+                      <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* 5. Algorithm Behavior Summary */}
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Algorithm Behavior Summary</h4>
+                </div>
+                <div className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5">
+                  <p className="text-sm font-semibold leading-6 text-[#4a2335]">{algoMetrics.insights.behaviorSummary}</p>
+                </div>
+              </motion.div>
+
+              {/* 7. Algorithm-Specific Insights */}
+              {algoMetrics.insights.algoSpecific.length > 0 && (
+                <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                    <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Algorithm-Specific Insights</h4>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {algoMetrics.insights.algoSpecific.map((text, i) => (
+                      <motion.div
+                        key={text}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.45 + i * 0.08 }}
+                        className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                      >
+                        <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                      </motion.div>
+                    ))}
+                  </div>
                 </motion.div>
-              ))}
+              )}
+
+              {/* 6. Scalability Insight */}
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Scalability Insight</h4>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {algoMetrics.insights.scalability.map((text, i) => (
+                    <motion.div
+                      key={text}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.5 + i * 0.08 }}
+                      className="rounded-[1.2rem] bg-white/68 p-4 shadow-sm shadow-[#ff4d8d]/5"
+                    >
+                      <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* 8. Educational Insight Box */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="rounded-[1.5rem] border border-[#be185d]/20 bg-gradient-to-br from-[#be185d]/8 to-[#ff4d8d]/8 p-5"
+              >
+                <div className="mb-2 flex items-center gap-3">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#be185d]/15 text-xs font-black text-[#be185d]">i</div>
+                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Why This Matters</h4>
+                </div>
+                <p className="text-sm font-semibold leading-6 text-[#4a2335]">{algoMetrics.insights.whyItMatters}</p>
+              </motion.div>
+
+              {/* 10. Key Takeaways Panel */}
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}>
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d]" />
+                  <h4 className="text-sm font-black uppercase tracking-[0.12em] text-[#be185d]">Key Takeaways</h4>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {algoMetrics.insights.takeaways.map((text, i) => (
+                    <motion.div
+                      key={text}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.6 + i * 0.08 }}
+                      className="rounded-[1.2rem] bg-white/68 p-3.5 shadow-sm shadow-[#ff4d8d]/5"
+                    >
+                      <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+
             </div>
           </div>
           <div className="mt-6 glass-card relative rounded-[2rem] p-4 md:p-6">
