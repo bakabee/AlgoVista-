@@ -1191,6 +1191,35 @@ function ResultsPage(props) {
     animation: { duration: 1200, easing: 'easeOutQuart' }
   }), [algoMetrics, total])
 
+  const growthChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { delay: 180, duration: 1400, easing: 'easeOutQuart' },
+    plugins: {
+      legend: { labels: { color: '#4a2335', usePointStyle: true, pointStyle: 'circle' } },
+      tooltip: {
+        enabled: true,
+        backgroundColor: 'rgba(255, 255, 255, 0.96)',
+        titleColor: '#27141e',
+        bodyColor: '#4a2335',
+        borderColor: '#ffb4cf',
+        borderWidth: 1
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Input Size', color: '#7a294d', font: { weight: 'bold', size: 13 } },
+        ticks: { color: '#7a294d' },
+        grid: { color: 'rgba(255, 77, 141, 0.11)' }
+      },
+      y: {
+        title: { display: true, text: 'Execution Time (ms)', color: '#7a294d', font: { weight: 'bold', size: 13 } },
+        ticks: { color: '#7a294d' },
+        grid: { color: 'rgba(255, 77, 141, 0.11)' }
+      }
+    }
+  }), [])
+
   return (
     <PageShell className="justify-start">
       <SectionHeader kicker="Page 4" title="Results Dashboard" subtitle="Readable execution statistics and expanded performance charts for analysis." />
@@ -1395,11 +1424,21 @@ function ResultsPage(props) {
               </div>
             </motion.div>
 
+          </div>
+          <div className="mt-6 glass-card relative rounded-[2rem] p-4 md:p-6">
+            <div className="grid gap-5 lg:grid-cols-2">
+              <LayeredChart id="growth" title="Input Size vs Performance" hovered={hoveredChart} onHover={onChartHover}>
+              <Line data={growthChart} options={growthChartOptions} />
+              </LayeredChart>
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-5">
+
             {/* 5. Algorithm Behavior Summary */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.56 }}
               className="glass-card rounded-[2rem] p-5"
             >
               <div className="mb-3 flex items-center gap-3">
@@ -1415,7 +1454,7 @@ function ResultsPage(props) {
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.64 }}
+              transition={{ delay: 0.08 }}
               className="glass-card rounded-[2rem] p-5"
             >
               <div className="mb-3 flex items-center gap-3">
@@ -1428,7 +1467,7 @@ function ResultsPage(props) {
                     key={text}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.68 + i * 0.08 }}
+                    transition={{ delay: 0.12 + i * 0.08 }}
                     className="rounded-[1.2rem] bg-white/68 p-3.5 shadow-sm shadow-[#ff4d8d]/5"
                   >
                     <p className="text-sm font-semibold leading-6 text-[#4a2335]">{text}</p>
@@ -1437,13 +1476,6 @@ function ResultsPage(props) {
               </div>
             </motion.div>
 
-          </div>
-          <div className="mt-6 glass-card relative rounded-[2rem] p-4 md:p-6">
-            <div className="grid gap-5 lg:grid-cols-2">
-              <LayeredChart id="growth" title="Input Size vs Performance" hovered={hoveredChart} onHover={onChartHover}>
-              <Line data={growthChart} options={chartOptions} />
-              </LayeredChart>
-            </div>
           </div>
         </>
       )}
