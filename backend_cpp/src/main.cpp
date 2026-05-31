@@ -2,15 +2,93 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
 #include <optional>
 #include <string>
+#include <sched.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <fstream>
+#include <sstream>
+#include <iomanip>
+#include <ctime>
 #include <vector>
 
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
+
+// ---------------------------------------------------------------------------
+// CPU affinity and system helpers
+// ---------------------------------------------------------------------------
+
+static int get_available_cores() {
+#ifdef __linux__
+  long n = sysconf(_SC_NPROCESSORS_ONLN);
+  return n > 0 ? static_cast<int>(n) : 1;
+#else
+  return 1;
+#endif
+}
+
+static bool set_cpu_affinity(int core) {
+#ifdef __linux__
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(core, &cpuset);
+  return sched_setaffinity(0, sizeof(cpu_set_t), &cpuset) == 0;
+#else
+  (void)core;
+  return false;
+#endif
+}
+
+static long get_thread_id() {
+#ifdef __linux__
+  return static_cast<long>(syscall(SYS_gettid));
+#else
+  return -1;
+#endif
+}
+
+static int get_core_id() {
+#ifdef __linux__
+  return sched_getcpu();
+#else
+  return -1;
+#endif
+}
+
+static long get_peak_memory_kb() {
+#ifdef __linux__
+  std::ifstream status("/proc/self/status");
+  if (!status.is_open()) return -1;
+  std::string line;
+  while (std::getline(status, line)) {
+    if (line.rfind("VmHWM:", 0) == 0) {
+      std::istringstream iss(line);
+      std::string label;
+      long value;
+      std::string unit;
+      if (iss >> label >> value >> unit) {
+        return value;
+      }
+    }
+  }
+#endif
+  return -1;
+}
+
+static std::string get_current_timestamp() {
+  auto now = std::time(nullptr);
+  auto* tm = std::gmtime(&now);
+  if (!tm) return "unknown";
+  std::ostringstream oss;
+  oss << std::put_time(tm, "%Y-%m-%dT%H:%M:%SZ");
+  return oss.str();
+}
 
 // ---------------------------------------------------------------------------
 // Step capture – mirrors Python's capture_step
@@ -239,6 +317,7 @@ struct AlgorithmRequest {
   std::vector<int> data;
   std::string type;
   std::optional<int> target;
+  std::optional<int> cpuCore;
 };
 
 static void from_json(const json& j, AlgorithmRequest& r) {
@@ -249,6 +328,11 @@ static void from_json(const json& j, AlgorithmRequest& r) {
     r.target = j["target"].get<int>();
   } else {
     r.target = std::nullopt;
+  }
+  if (j.contains("cpuCore") && !j["cpuCore"].is_null()) {
+    r.cpuCore = j["cpuCore"].get<int>();
+  } else {
+    r.cpuCore = std::nullopt;
   }
 }
 
@@ -264,14 +348,14 @@ static json make_health_response() {
 static json make_algorithm_response(
     const std::string& algorithm, const std::vector<int>& data,
     const std::string& type, std::optional<int> target,
-    const std::chrono::high_resolution_clock::time_point& start,
+    double elapsed_ms,
     const std::vector<int>& sorted_data, int comparisons,
     std::optional<int> found_index,
-    const std::vector<std::vector<int>>& steps) {
+    const std::vector<std::vector<int>>& steps,
+    int cpu_core, bool affinity_enabled, int available_cores,
+    long thread_id, int core_id, long peak_memory_kb,
+    const std::string& timestamp) {
 
-  auto end = std::chrono::high_resolution_clock::now();
-  double elapsed_ms =
-      std::chrono::duration<double, std::milli>(end - start).count();
   elapsed_ms = std::round(elapsed_ms * 10000.0) / 10000.0;
 
   // truncate sorted data to 1000 (matching Python backend)
@@ -290,6 +374,13 @@ static json make_algorithm_response(
   j["target"] = target ? json(*target) : json(nullptr);
   j["foundIndex"] = found_index ? json(*found_index) : json(nullptr);
   j["steps"] = steps;
+  j["cpuCore"] = cpu_core;
+  j["cpuAffinityEnabled"] = affinity_enabled;
+  j["availableCores"] = available_cores;
+  j["threadId"] = thread_id;
+  j["coreId"] = core_id;
+  j["peakMemoryKB"] = peak_memory_kb;
+  j["benchmarkTimestamp"] = timestamp;
   return j;
 }
 
@@ -297,7 +388,16 @@ static json make_algorithm_response(
 // main – HTTP server
 // ---------------------------------------------------------------------------
 
-int main() {
+int main(int argc, char* argv[]) {
+  int affinity_core = 0;
+  if (argc > 1) {
+    affinity_core = std::atoi(argv[1]);
+    if (affinity_core < 0) affinity_core = 0;
+  }
+  bool pinned = set_cpu_affinity(affinity_core);
+  std::cout << "CPU affinity: core " << affinity_core
+            << (pinned ? " [OK]" : " [FAIL]") << std::endl;
+
   httplib::Server svr;
 
   // CORS – set headers on every response via a hook
@@ -336,48 +436,23 @@ int main() {
         return;
       }
 
-      auto start = std::chrono::high_resolution_clock::now();
-      std::optional<int> found_index;
-      std::vector<std::vector<int>> steps;
-      std::vector<int> sorted_data;
-      int comparisons = 0;
+      // --- CPU affinity setup ---
+      int available_cores = get_available_cores();
+      int cpu_core = payload.cpuCore.value_or(0);
+      if (cpu_core < 0 || cpu_core >= available_cores) {
+        cpu_core = 0;
+      }
+      bool affinity_enabled = set_cpu_affinity(cpu_core);
 
-      if (payload.algorithm == "bubble_sort") {
-        auto r = bubble_sort(payload.data);
-        sorted_data = r.sorted;
-        comparisons = r.comparisons;
-        steps = r.steps;
-      } else if (payload.algorithm == "selection_sort") {
-        auto r = selection_sort(payload.data);
-        sorted_data = r.sorted;
-        comparisons = r.comparisons;
-        steps = r.steps;
-      } else if (payload.algorithm == "insertion_sort") {
-        auto r = insertion_sort(payload.data);
-        sorted_data = r.sorted;
-        comparisons = r.comparisons;
-        steps = r.steps;
-      } else if (payload.algorithm == "merge_sort") {
-        auto r = merge_sort(payload.data);
-        sorted_data = r.sorted;
-        comparisons = r.comparisons;
-        steps = r.steps;
-      } else if (payload.algorithm == "quick_sort") {
-        auto r = quick_sort(payload.data);
-        sorted_data = r.sorted;
-        comparisons = r.comparisons;
-        steps = r.steps;
-      } else if (payload.algorithm == "linear_search") {
-        auto r = linear_search(payload.data, payload.target);
-        sorted_data = r.data;
-        comparisons = r.comparisons;
-        found_index = r.foundIndex;
-      } else if (payload.algorithm == "binary_search") {
-        auto r = binary_search(payload.data, payload.target);
-        sorted_data = r.data;
-        comparisons = r.comparisons;
-        found_index = r.foundIndex;
-      } else {
+      // --- Validate algorithm ---
+      bool algo_valid = (payload.algorithm == "bubble_sort" ||
+                         payload.algorithm == "selection_sort" ||
+                         payload.algorithm == "insertion_sort" ||
+                         payload.algorithm == "merge_sort" ||
+                         payload.algorithm == "quick_sort" ||
+                         payload.algorithm == "linear_search" ||
+                         payload.algorithm == "binary_search");
+      if (!algo_valid) {
         res.status = 400;
         res.set_content(
             make_error_response("Unsupported algorithm.", 400).dump(),
@@ -385,9 +460,56 @@ int main() {
         return;
       }
 
+      // --- Algorithm dispatch lambda (shared by warm-up and timed run) ---
+      auto run_algo = [&]() -> std::tuple<std::vector<int>, int,
+                                          std::optional<int>,
+                                          std::vector<std::vector<int>>> {
+        if (payload.algorithm == "bubble_sort") {
+          auto r = bubble_sort(payload.data);
+          return {r.sorted, r.comparisons, std::nullopt, r.steps};
+        } else if (payload.algorithm == "selection_sort") {
+          auto r = selection_sort(payload.data);
+          return {r.sorted, r.comparisons, std::nullopt, r.steps};
+        } else if (payload.algorithm == "insertion_sort") {
+          auto r = insertion_sort(payload.data);
+          return {r.sorted, r.comparisons, std::nullopt, r.steps};
+        } else if (payload.algorithm == "merge_sort") {
+          auto r = merge_sort(payload.data);
+          return {r.sorted, r.comparisons, std::nullopt, r.steps};
+        } else if (payload.algorithm == "quick_sort") {
+          auto r = quick_sort(payload.data);
+          return {r.sorted, r.comparisons, std::nullopt, r.steps};
+        } else if (payload.algorithm == "linear_search") {
+          auto r = linear_search(payload.data, payload.target);
+          return {r.data, r.comparisons, r.foundIndex, {}};
+        } else if (payload.algorithm == "binary_search") {
+          auto r = binary_search(payload.data, payload.target);
+          return {r.data, r.comparisons, r.foundIndex, {}};
+        }
+        return {{}, 0, std::nullopt, {}};
+      };
+
+      // --- Warm-up run (result discarded) ---
+      run_algo();
+
+      // --- Timed execution ---
+      auto start = std::chrono::high_resolution_clock::now();
+      auto [sorted_data, comparisons, found_index, steps] = run_algo();
+      auto end = std::chrono::high_resolution_clock::now();
+      double elapsed_ms =
+          std::chrono::duration<double, std::milli>(end - start).count();
+
+      // --- Collect optional performance metrics ---
+      long thread_id = get_thread_id();
+      int core_id = get_core_id();
+      long peak_memory_kb = get_peak_memory_kb();
+      std::string timestamp = get_current_timestamp();
+
       json response = make_algorithm_response(
           payload.algorithm, payload.data, payload.type, payload.target,
-          start, sorted_data, comparisons, found_index, steps);
+          elapsed_ms, sorted_data, comparisons, found_index, steps,
+          cpu_core, affinity_enabled, available_cores,
+          thread_id, core_id, peak_memory_kb, timestamp);
 
       res.set_content(response.dump(), "application/json");
 
